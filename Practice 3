@@ -1,0 +1,95 @@
+
+// models/product.js
+const mongoose = require('mongoose');
+
+const variantSchema = new mongoose.Schema({
+    color: String,
+    size: String,
+    stock: Number,
+});
+
+const productSchema = new mongoose.Schema({
+    name: String,
+    price: Number,
+    category: String,
+    variants: [variantSchema],
+});
+
+module.exports = mongoose.model('Product', productSchema);
+
+// index.js
+const express = require('express');
+const mongoose = require('mongoose');
+const Product = require('./models/product');
+
+const app = express();
+app.use(express.json());
+
+mongoose.connect('mongodb://localhost:27017/catalogDB', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+});
+
+// Insert sample products
+app.post('/products/sample', async (req, res) => {
+    try {
+        const products = [
+            {
+                name: "T-Shirt",
+                price: 299,
+                category: "Clothing",
+                variants: [
+                    { color: "Red", size: "M", stock: 25 },
+                    { color: "Blue", size: "L", stock: 12 }
+                ]
+            },
+            {
+                name: "Running Shoes",
+                price: 999,
+                category: "Footwear",
+                variants: [
+                    { color: "Black", size: "8", stock: 5 },
+                    { color: "White", size: "9", stock: 10 }
+                ]
+            }
+        ];
+        await Product.insertMany(products);
+        res.json({ message: 'Sample products inserted.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get all products
+app.get('/products', async (req, res) => {
+    try {
+        const products = await Product.find();
+        res.json(products);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Filter products by category
+app.get('/products/category/:category', async (req, res) => {
+    try {
+        const products = await Product.find({ category: req.params.category });
+        res.json(products);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Project specific variant details of a product (e.g., variants only)
+app.get('/products/:id/variants', async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id, 'variants');
+        res.json(product ? product.variants : []);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.listen(3000, () => {
+    console.log('Server running on port 3000');
+});
